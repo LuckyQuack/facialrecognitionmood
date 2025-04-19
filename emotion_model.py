@@ -27,6 +27,3 @@ def predict_emotion(face_roi):
     prediction = model.predict(face_roi)
     return map_emotion(prediction)
 
-#visualize data
-#save previous data
-#neutral is too strong but we must focus on accuracy so maybe large change from neutral state should affect it

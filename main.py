@@ -102,5 +102,6 @@ if emotions_during_session:
 
 #what to work on
 #fix neutral strength ; neutral shows too much
-#visualize data ; current implementation is not ideal
+#add stronger emotion like very unpleasant, very pleasant
+#visualize data ; change dot color based on emotion
 #experiment design ; figure out the experiment design

@@ -1,12 +1,18 @@
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QListWidget, QPushButton, QLabel, QInputDialog
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+from collections import defaultdict
 from datetime import datetime
 import sys
 import os
 import json
 
 DATA_FILE = "emotions.json"
+
+EMOTION_TO_SCORE = {
+    "Sad": -1,
+    "Neutral": 0,
+    "Happy": 1,
+}
 
 class EmotionLogger(QWidget):
     def __init__(self):
@@ -27,7 +33,7 @@ class EmotionLogger(QWidget):
         self.layout.addWidget(self.edit_button)
 
         self.chart_button = QPushButton("Show Emotion Trend")
-        self.chart_button.clicked.connect(self.show_emotion_chart)
+        self.chart_button.clicked.connect(self.show_emotion_graph)
         self.layout.addWidget(self.chart_button)
         
         self.setLayout(self.layout)
@@ -55,11 +61,15 @@ class EmotionLogger(QWidget):
 
     def update_list(self):
         self.emotion_list.clear()
-        for time, emotion in self.emotions:
-            self.emotion_list.addItem(f"{time}: {emotion}")
+        for timestamp, emotion in self.emotions:
+            try:
+                time_display = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").strftime("%b %d %I:%M %p")
+            except ValueError:
+                time_display = timestamp  # fallback
+            self.emotion_list.addItem(f"{time_display}: {emotion}")
 
     def add_emotion(self, emotion):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # timestamp format
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # full timestamp
         self.emotions.append((timestamp, emotion))
         self.save_emotions()
         self.update_list()
@@ -74,50 +84,46 @@ class EmotionLogger(QWidget):
                 self.save_emotions()
                 self.update_list()
 
-    def show_emotion_chart(self):
-        if not self.emotions:
-            return
+    def show_emotion_graph(self):
+        import matplotlib.pyplot as plt
+        from collections import defaultdict
+        from datetime import datetime
 
-        # Parse times and emotions
-        timestamps = []
-        emotion_labels = []
-        for time_str, emotion in self.emotions:
+        daily_scores = defaultdict(list)
+
+        # Group scores by date
+        for timestamp, emotion in self.emotions:
             try:
-                # Try parsing with time only or datetime
-                if ":" in time_str and "AM" in time_str or "PM" in time_str:
-                    time_obj = datetime.strptime(time_str, "%I:%M %p")
-                else:
-                    time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                # Attempt to parse full timestamp
+                dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
             except ValueError:
-                continue
-            timestamps.append(time_obj)
-            emotion_labels.append(emotion)
+                # Fallback if timestamp only has time
+                dt = datetime.now().replace(hour=int(timestamp.split(":")[0]), minute=int(timestamp.split(":")[1]))
+            date_str = dt.strftime("%Y-%m-%d")
+            score = EMOTION_TO_SCORE.get(emotion, 0)
+            daily_scores[date_str].append(score)
 
-        # Map emotions to numerical values
-        unique_emotions = list(sorted(set(emotion_labels)))
-        emotion_to_value = {emotion: idx for idx, emotion in enumerate(unique_emotions)}
-        numeric_emotions = [emotion_to_value[e] for e in emotion_labels]
+        # Prepare lists for plotting
+        dates = sorted(daily_scores.keys())
+        avg_scores = [sum(scores) / len(scores) for scores in [daily_scores[d] for d in dates]]
 
-        # Clear previous chart
-        if hasattr(self, 'chart_canvas'):
-            self.layout.removeWidget(self.chart_canvas)
-            self.chart_canvas.deleteLater()
+        # Plotting
+        plt.figure(figsize=(8, 4))
+        plt.plot(dates, avg_scores, marker='o', linewidth=2, color='mediumseagreen')
+        plt.axhline(0, color='gray', linestyle='--', linewidth=0.7)
 
-        # Create chart
-        fig = Figure(figsize=(5, 3))
-        ax = fig.add_subplot(111)
-        ax.plot(timestamps, numeric_emotions, marker='o', linestyle='-')
-        ax.set_yticks(list(emotion_to_value.values()))
-        ax.set_yticklabels(unique_emotions)
-        ax.set_title("Emotion Trend Over Time")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Emotion")
-        fig.autofmt_xdate()
+        plt.yticks([-2, -1, 0, 1, 2], ['Very Unpleasant', 'Sad', 'Neutral', 'Happy', 'Very Pleasant'])
+        plt.xticks(rotation=45, fontsize=8)
+        plt.grid(axis='y', linestyle='--', alpha=0.3)
+        plt.title("Average Mood per Day", fontsize=14, fontweight='bold')
+        plt.tight_layout()
 
-        self.chart_canvas = FigureCanvas(fig)
-        self.layout.addWidget(self.chart_canvas)
+        # Clean up chart borders
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
-
+        plt.show()
 
 def launch_gui():
     app = QApplication(sys.argv)
