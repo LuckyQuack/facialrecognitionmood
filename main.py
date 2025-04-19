@@ -1,8 +1,11 @@
 import cv2
 import numpy as np
+import time
+from collections import Counter
 from detector import FaceDetector
 from emotion_model import predict_emotion
 from stabilizer import EmotionStabilizer
+from datetime import datetime
 
 # Initialize modules
 face_detector = FaceDetector()
@@ -10,13 +13,14 @@ stabilizer = EmotionStabilizer()
 cap = cv2.VideoCapture(0)
 
 neutral_baseline = None  # Stores first detected neutral state of eyebrows for reference
+emotions_during_session = []
 
-# Get eyebrow ratio for neutral baseline
+# Duration limit
+DETECTION_DURATION = 10  # seconds
+start_time = time.time()
+
+# Eyebrow helper
 def get_eyebrow_height_ratio(landmarks, img_h, img_w):
-    """
-    Measures eyebrow height relative to the eyes.
-    Lower height → possible neutral state misclassification.
-    """
     global neutral_baseline
 
     left_brow = np.array([(landmarks[70].x * img_w, landmarks[70].y * img_h)])
@@ -28,7 +32,7 @@ def get_eyebrow_height_ratio(landmarks, img_h, img_w):
     left_ratio = abs(left_brow[0][1] - left_eye[0][1])
     right_ratio = abs(right_brow[0][1] - right_eye[0][1])
     
-    current_ratio = (left_ratio + right_ratio) / 2  # Average for both eyebrows
+    current_ratio = (left_ratio + right_ratio) / 2
 
     if neutral_baseline is None:
         neutral_baseline = current_ratio
@@ -36,6 +40,9 @@ def get_eyebrow_height_ratio(landmarks, img_h, img_w):
     return current_ratio
 
 while cap.isOpened():
+    if time.time() - start_time > DETECTION_DURATION:
+        break
+
     ret, frame = cap.read()
     if not ret:
         break
@@ -51,24 +58,21 @@ while cap.isOpened():
             bbox = detection.location_data.relative_bounding_box
             x, y, width, height = int(bbox.xmin * img_w), int(bbox.ymin * img_h), int(bbox.width * img_w), int(bbox.height * img_h)
 
-            # Extract face ROI
             face_roi = frame[y:y+height, x:x+width]
             face_roi = cv2.resize(face_roi, (48, 48))
             face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-            # Predict emotion
             detected_emotion = predict_emotion(face_roi)
 
-            # Adjust emotion using eyebrow data
             eyebrow_ratio = get_eyebrow_height_ratio(landmarks.landmark, img_h, img_w)
-            if neutral_baseline is not None and abs(eyebrow_ratio - neutral_baseline) < 3:
+            if neutral_baseline is not None and abs(eyebrow_ratio - neutral_baseline) < 5:
                 detected_emotion = "Neutral"
             elif detected_emotion == "Sad" and abs(eyebrow_ratio - neutral_baseline) < 5:
                 detected_emotion = "Neutral"
 
             stable_emotion = stabilizer.get_stable_emotion(detected_emotion)
+            emotions_during_session.append(stable_emotion)
 
-            # Draw bounding box & emotion label
             cv2.rectangle(frame, (x, y), (x + width, y + height), (0, 255, 0), 2)
             cv2.putText(frame, stable_emotion, (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
@@ -80,3 +84,23 @@ while cap.isOpened():
 
 cap.release()
 cv2.destroyAllWindows()
+
+# Log the most frequent emotion from session
+if emotions_during_session:
+    most_common_emotion = Counter(emotions_during_session).most_common(1)[0][0]
+
+    # Import the logger GUI and add emotion
+    from emotion_logger_gui import EmotionLogger
+    from PyQt6.QtWidgets import QApplication
+    import sys
+
+    app = QApplication(sys.argv)
+    emotion_logger = EmotionLogger()
+    emotion_logger.add_emotion(stable_emotion)
+    emotion_logger.show()
+    sys.exit(app.exec())
+
+#what to work on
+#fix neutral strength ; neutral shows too much
+#visualize data ; current implementation is not ideal
+#experiment design ; figure out the experiment design
