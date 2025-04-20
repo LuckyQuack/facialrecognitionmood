@@ -1,7 +1,7 @@
 ## How to use:
 First set up a python virtual environment and activate it
 now install some stuff in the virtual environment: 
-## pip install PyQt6 matplotlib numpy opencv-python tensorflow mediapipe
+### pip install PyQt6 matplotlib numpy opencv-python tensorflow mediapipe
 Now you can run python main.py and it should detect your webcam and work
 
 ## TODO:
