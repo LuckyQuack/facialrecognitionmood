@@ -16,7 +16,7 @@ class EmotionStabilizer:
         for i, emotion in enumerate(self.rolling_window):
             weight = weights[i]
             if emotion == "Sad":
-                weight *= 1.2  # Boost Sad detection  
+                weight *= 1.4  # Boost Sad detection  
             emotion_counts[emotion] += weight
 
         return max(emotion_counts, key=emotion_counts.get)  # Most weighted emotion

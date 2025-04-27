@@ -19,26 +19,6 @@ emotions_during_session = []
 DETECTION_DURATION = 10  # seconds
 start_time = time.time()
 
-# Eyebrow helper
-def get_eyebrow_height_ratio(landmarks, img_h, img_w):
-    global neutral_baseline
-
-    left_brow = np.array([(landmarks[70].x * img_w, landmarks[70].y * img_h)])
-    right_brow = np.array([(landmarks[295].x * img_w, landmarks[295].y * img_h)])
-    
-    left_eye = np.array([(landmarks[159].x * img_w, landmarks[159].y * img_h)])
-    right_eye = np.array([(landmarks[386].x * img_w, landmarks[386].y * img_h)])
-    
-    left_ratio = abs(left_brow[0][1] - left_eye[0][1])
-    right_ratio = abs(right_brow[0][1] - right_eye[0][1])
-    
-    current_ratio = (left_ratio + right_ratio) / 2
-
-    if neutral_baseline is None:
-        neutral_baseline = current_ratio
-
-    return current_ratio
-
 while cap.isOpened():
     if time.time() - start_time > DETECTION_DURATION:
         break
@@ -63,12 +43,6 @@ while cap.isOpened():
             face_roi = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
             detected_emotion = predict_emotion(face_roi)
-
-            eyebrow_ratio = get_eyebrow_height_ratio(landmarks.landmark, img_h, img_w)
-            if neutral_baseline is not None and abs(eyebrow_ratio - neutral_baseline) < 5:
-                detected_emotion = "Neutral"
-            elif detected_emotion == "Sad" and abs(eyebrow_ratio - neutral_baseline) < 5:
-                detected_emotion = "Neutral"
 
             stable_emotion = stabilizer.get_stable_emotion(detected_emotion)
             emotions_during_session.append(stable_emotion)
@@ -102,6 +76,3 @@ if emotions_during_session:
 
 #what to work on
 #fix neutral strength ; neutral shows too much
-#add stronger emotion like very unpleasant, very pleasant
-#visualize data ; change dot color based on emotion
-#experiment design ; figure out the experiment design

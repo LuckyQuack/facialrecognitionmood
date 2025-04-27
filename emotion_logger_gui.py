@@ -109,10 +109,21 @@ class EmotionLogger(QWidget):
 
         # Plotting
         plt.figure(figsize=(8, 4))
+
+        # Plot line
         plt.plot(dates, avg_scores, marker='o', linewidth=2, color='mediumseagreen')
+
+        # Plot points with color based scores
+        for i, score in enumerate(avg_scores):
+            if score < 0:
+                color = 'red'
+            else:
+                color = 'green'
+            plt.plot(dates[i], score, marker='o', color=color)
+            
         plt.axhline(0, color='gray', linestyle='--', linewidth=0.7)
 
-        plt.yticks([-2, -1, 0, 1, 2], ['Very Unpleasant', 'Sad', 'Neutral', 'Happy', 'Very Pleasant'])
+        plt.yticks([-1, 0, 1], ['Sad', 'Neutral', 'Happy'])
         plt.xticks(rotation=45, fontsize=8)
         plt.grid(axis='y', linestyle='--', alpha=0.3)
         plt.title("Average Mood per Day", fontsize=14, fontweight='bold')
