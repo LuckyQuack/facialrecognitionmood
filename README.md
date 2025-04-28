@@ -1,4 +1,5 @@
 # How to run
+- Your device needs a webcam
 - You can try either the executable file or installing everything yourself
 
 ## Executable:
